@@ -1,35 +1,33 @@
+
 import "react-native-reanimated";
-import React, { useEffect } from "react";
-import { useFonts } from "expo-font";
-import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { SystemBars } from "react-native-edge-to-edge";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { useColorScheme, Alert } from "react-native";
-import { useNetworkState } from "expo-network";
 import {
   DarkTheme,
   DefaultTheme,
   Theme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { StatusBar } from "expo-status-bar";
-import { Button } from "@/components/button";
+import React, { useEffect, useState } from "react";
 import { WidgetProvider } from "@/contexts/WidgetContext";
-
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
-
-export const unstable_settings = {
-  initialRouteName: "(tabs)",
-};
+import { Button } from "@/components/button";
+import { useFonts } from "expo-font";
+import { StatusBar } from "expo-status-bar";
+import { useNetworkState } from "expo-network";
+import { useColorScheme, Alert, View } from "react-native";
+import { Stack, router } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SystemBars } from "react-native-edge-to-edge";
+import ChatBot from "@/components/ChatBot";
+import ChatFAB from "@/components/ChatFAB";
+import { colors } from "@/styles/commonStyles";
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const networkState = useNetworkState();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  const { isConnected } = useNetworkState();
+  const colorScheme = useColorScheme();
+  const [chatVisible, setChatVisible] = useState(false);
 
   useEffect(() => {
     if (loaded) {
@@ -37,88 +35,76 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  React.useEffect(() => {
-    if (
-      !networkState.isConnected &&
-      networkState.isInternetReachable === false
-    ) {
+  useEffect(() => {
+    if (isConnected === false) {
       Alert.alert(
-        "🔌 You are offline",
-        "You can keep using the app! Your changes will be saved locally and synced when you are back online."
+        "Pas de connexion Internet",
+        "Veuillez vérifier votre connexion Internet pour utiliser Shopy Kin.",
+        [{ text: "OK" }]
       );
     }
-  }, [networkState.isConnected, networkState.isInternetReachable]);
+  }, [isConnected]);
 
   if (!loaded) {
     return null;
   }
 
-  const CustomDefaultTheme: Theme = {
+  const theme: Theme = {
     ...DefaultTheme,
-    dark: false,
     colors: {
-      primary: "rgb(0, 122, 255)", // System Blue
-      background: "rgb(242, 242, 247)", // Light mode background
-      card: "rgb(255, 255, 255)", // White cards/surfaces
-      text: "rgb(0, 0, 0)", // Black text for light mode
-      border: "rgb(216, 216, 220)", // Light gray for separators/borders
-      notification: "rgb(255, 59, 48)", // System Red
+      ...DefaultTheme.colors,
+      background: colors.background,
+      card: colors.card,
+      text: colors.text,
+      border: colors.border,
+      primary: colors.primary,
     },
   };
 
-  const CustomDarkTheme: Theme = {
-    ...DarkTheme,
-    colors: {
-      primary: "rgb(10, 132, 255)", // System Blue (Dark Mode)
-      background: "rgb(1, 1, 1)", // True black background for OLED displays
-      card: "rgb(28, 28, 30)", // Dark card/surface color
-      text: "rgb(255, 255, 255)", // White text for dark mode
-      border: "rgb(44, 44, 46)", // Dark gray for separators/borders
-      notification: "rgb(255, 69, 58)", // System Red (Dark Mode)
-    },
-  };
   return (
-    <>
-      <StatusBar style="auto" animated />
-        <ThemeProvider
-          value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
-        >
-          <WidgetProvider>
-            <GestureHandlerRootView>
-            <Stack>
-              {/* Main app with tabs */}
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-              {/* Modal Demo Screens */}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <WidgetProvider>
+        <ThemeProvider value={theme}>
+          <SystemBars style="auto" />
+          <View style={{ flex: 1, backgroundColor: colors.background }}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            >
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="modal" options={{ presentation: "modal" }} />
               <Stack.Screen
-                name="modal"
+                name="transparent-modal"
                 options={{
-                  presentation: "modal",
-                  title: "Standard Modal",
+                  presentation: "transparentModal",
+                  animation: "fade",
                 }}
               />
               <Stack.Screen
                 name="formsheet"
                 options={{
                   presentation: "formSheet",
-                  title: "Form Sheet Modal",
-                  sheetGrabberVisible: true,
-                  sheetAllowedDetents: [0.5, 0.8, 1.0],
-                  sheetCornerRadius: 20,
-                }}
-              />
-              <Stack.Screen
-                name="transparent-modal"
-                options={{
-                  presentation: "transparentModal",
-                  headerShown: false,
                 }}
               />
             </Stack>
-            <SystemBars style={"auto"} />
-            </GestureHandlerRootView>
-          </WidgetProvider>
+            
+            {/* Chat FAB - Always visible on main screens */}
+            <ChatFAB 
+              onPress={() => setChatVisible(true)}
+              visible={!chatVisible}
+            />
+            
+            {/* Chat Bot Modal */}
+            <ChatBot 
+              visible={chatVisible}
+              onClose={() => setChatVisible(false)}
+            />
+          </View>
+          <StatusBar style="auto" />
         </ThemeProvider>
-    </>
+      </WidgetProvider>
+    </GestureHandlerRootView>
   );
 }
